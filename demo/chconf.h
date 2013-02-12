@@ -32,6 +32,8 @@
 #ifndef _CHCONF_H_
 #define _CHCONF_H_
 
+#define CHPRINTF_USE_FLOAT TRUE
+
 /*===========================================================================*/
 /**
  * @name Kernel parameters and options

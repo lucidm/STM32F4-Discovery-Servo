@@ -78,15 +78,26 @@ Servo *servo2;
 // }
 
 //-----------------------------------------------------------------
-void cmd_servo(BaseSequentialStream *chp, int argc, char *argv[]) {
+void cmd_moveto(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
   if (argc != 2) {
-    chprintf(chp, "Usage: srv [channel] [degree -90 to 90]\r\n");
+    chprintf(chp, "Usage: mv [channel] [degree -90 to 90]\r\n");
     return;
   }
 
   //chMBPost(mbox, 0, TIME_INFINITE);
-  servos[atoi(argv[0])]->moveTo(atof(argv[1]));
+  chprintf(chp, "OLD = %2.2f \r\n", servos[atoi(argv[0])]->moveTo(atof(argv[1])));
+}
+
+void cmd_relative(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+  if (argc != 2) {
+    chprintf(chp, "Usage: rel [channel] [relative degree]\r\n");
+    return;
+  }
+
+  //chMBPost(mbox, 0, TIME_INFINITE);
+  chprintf(chp, "OLD = %2.2f \r\n", servos[atoi(argv[0])]->moveRelative(atof(argv[1])));
 }
 
 void cmd_reg(BaseSequentialStream *chp, int argc, char *argv[]) {
@@ -162,7 +173,8 @@ static const ShellCommand commands[] = {
   {"freq", cmd_freq},
   {"pwm", cmd_pwm},
   {"per", cmd_period},
-  {"srv", cmd_servo},
+  {"mov", cmd_moveto},
+  {"rel", cmd_relative},
   {NULL, NULL}
 };
 
@@ -210,8 +222,8 @@ int main(void) {
   chMBInit(&mbox, mbox_buffer, 8);
 
   pcachip = new PCA9685(&PCA9685_DEFI2C_DRIVER, &i2cconfig, PCA9685_ADDRESS, 47, true);
-  servos[0] = new Servo(pcachip, 2, 220, 420);
-  servos[1] = new Servo(pcachip, 3, 220, 420);
+  servos[0] = new Servo(pcachip, 2, 220, 420, 0.12, 60, TRUE);
+  servos[1] = new Servo(pcachip, 3, 220, 420, 0.12, 60, TRUE);
 
   servos[0]->setNeutral();
   servos[1]->setNeutral();

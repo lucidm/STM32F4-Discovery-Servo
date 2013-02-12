@@ -22,12 +22,13 @@
 
 class Servo {
     public:
-        Servo(PCA9685 *driver, uint8_t channel, uint16_t minimum, uint16_t maximum);
+        Servo(PCA9685 *driver, uint8_t channel, uint16_t minimum, uint16_t maximum, float speed, uint8_t sdegree, bool blocking);
         void* operator new(size_t size);
         void operator delete(void *mem);
 
-        void setNeutral();
-        void moveTo(float degree);
+        float setNeutral();
+        float moveTo(float degree);
+        float moveRelative(float value);
 
 
 
@@ -37,6 +38,11 @@ private:
     uint16_t minimum;
     uint16_t maximum;
     uint16_t neutral;
+    float current;
+    float speed;
+    int8_t sdegree;
+    bool blocking;
+    Mutex flag;
 };
 
 #endif
