@@ -26,9 +26,10 @@ class Servo {
         void* operator new(size_t size);
         void operator delete(void *mem);
 
-        float setNeutral();
-        float moveTo(float degree);
-        float moveRelative(float value);
+        Servo *setNeutral();
+        Servo *moveTo(float degree);
+        Servo *moveRelative(float value);
+        float getPosition(void);
 
 
 

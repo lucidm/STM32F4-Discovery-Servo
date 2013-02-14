@@ -79,13 +79,11 @@ void Servo::operator delete(void *mem) {
  * @param float degree - degrees range from -90 to 90
  * @return old position
  */
-float Servo::moveTo(float degree) {
+Servo *Servo::moveTo(float degree) {
     uint16_t position = this->minimum;
     uint16_t turntime;
-    float old;
 
     chMtxLock(&this->flag);
-    old = this->current;
     turntime = (abs(degree - this->current)/this->sdegree)*(this->speed * 1000);
     position += ceil(((this->maximum - this->minimum) / 180.0) * (degree + 90));
     position = position > this->maximum ? this->maximum : position < this->minimum ? this->minimum : position;
@@ -94,7 +92,7 @@ float Servo::moveTo(float degree) {
     if (this->blocking) chThdSleepMicroseconds(turntime);
     chMtxUnlock();
 
-    return old;
+    return this;
 }
 
 /**
@@ -102,22 +100,20 @@ float Servo::moveTo(float degree) {
  * @param float value - new position value relative to current position
  * @return old position
  */
-float Servo::moveRelative(float value) {
+Servo *Servo::moveRelative(float value) {
     uint16_t position = this->minimum;
     uint16_t turntime;
-    float old;
 
     chMtxLock(&this->flag);
-    old = this->current;
     turntime = (abs((this->current + value) - this->current)/this->sdegree)*(this->speed * 1000);
-    position += ceil(((this->maximum - this->minimum) / 180.0) * ((old + value) + 90));
+    position += ceil(((this->maximum - this->minimum) / 180.0) * ((this->current + value) + 90));
     position = position > this->maximum ? this->maximum : position < this->minimum ? this->minimum : position;
     this->driver->setPWM(this->channel, 0, position);
-    this->current = (old + value);
+    this->current = (this->current + value);
     if (this->blocking) chThdSleepMicroseconds(turntime);
     chMtxUnlock();
 
-    return old;
+    return this;
 
 }
 
@@ -125,17 +121,19 @@ float Servo::moveRelative(float value) {
  * Sets servo neutral position.
  * @return old position
  */
-float Servo::setNeutral() {
-    float old;
+Servo *Servo::setNeutral() {
     uint16_t turntime;
 
     chMtxLock(&this->flag);
-    old = this->current;
     turntime = (abs(this->current)/this->sdegree)*(this->speed * 1000);
     this->current = 0;
     this->driver->setPWM(this->channel, 0, this->neutral);
     if (this->blocking) chThdSleepMicroseconds(turntime);
     chMtxUnlock();
 
-    return old;
+    return this;
+}
+
+float Servo::getPosition(void) {
+    return this->current;
 }
