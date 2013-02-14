@@ -86,7 +86,8 @@ void cmd_moveto(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
 
   //chMBPost(mbox, 0, TIME_INFINITE);
-  chprintf(chp, "OLD = %2.2f \r\n", servos[atoi(argv[0])]->moveTo(atof(argv[1])));
+  servos[atoi(argv[0])]->moveTo(atof(argv[1]));
+  chprintf(chp, "OLD = %2.2f \r\n", servos[atoi(argv[0])]->getPosition());
 }
 
 void cmd_relative(BaseSequentialStream *chp, int argc, char *argv[]) {
@@ -97,7 +98,8 @@ void cmd_relative(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
 
   //chMBPost(mbox, 0, TIME_INFINITE);
-  chprintf(chp, "OLD = %2.2f \r\n", servos[atoi(argv[0])]->moveRelative(atof(argv[1])));
+  servos[atoi(argv[0])]->moveRelative(atof(argv[1]));
+  chprintf(chp, "OLD = %2.2f \r\n", servos[atoi(argv[0])]->getPosition());
 }
 
 void cmd_reg(BaseSequentialStream *chp, int argc, char *argv[]) {
