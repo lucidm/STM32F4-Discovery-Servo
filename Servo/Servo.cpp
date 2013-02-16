@@ -41,10 +41,10 @@ extern "C" {
  * Servo object constructor
  * @param PCA9685 * a PCA9685 object set for communication with servo
  * @param uint8_t channel number [0-15]
- * @param uint16_t minimum - min value of PWM setting at which pulse will take exactly 1ms
- * @param uint16_t maximum - max value of PWM setting at which pulse will take 2ms
+ * @param float dutymin - min value of PWM duty setting at which pulse will take exactly 1ms
+ * @param float dutymax - max value of PWM duty setting at which pulse will take 2ms
  * @param float speed - time in seconds the servo will move in given range of degrees,
- *                      usually in seconds per 60 degrees (i.e. 0.12s/60deg). Please consult
+ *                      usually given in seconds per 60 degrees (i.e. 0.12s/60deg). Please consult
  *                      documentation for used servo.
  * @param uint8_t sdegree - range at which servo will move for given time.
  * @param bool blocking - if TRUE, then after changing PWM value, methods as moveTo or moveRelative, will wait
