@@ -132,7 +132,8 @@ void cmd_freq(BaseSequentialStream *chp, int argc, char *argv[]) {
   }
 
   uint16_t freq = atoi(argv[0]);
-  chprintf(chp, "FREQ : %u \r\n", pcachip->setFreq(freq));
+  pcachip->setFreq(freq);
+  chprintf(chp, "FREQ : %u \r\n", pcachip->getFreq());
   chprintf(chp, "STATUS : %u \r\n", pcachip->getStatus());
 }
 
@@ -164,6 +165,18 @@ void cmd_period(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "STATUS : %u \r\n", pcachip->getStatus());
 }
 
+void cmd_duty(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+  if (argc != 2) {
+    chprintf(chp, "Usage: duty <channel> <duty>\r\n");
+    return;
+  }
+
+  pcachip->setChannel(atoi(argv[0]));
+  pcachip->setPWM(atof(argv[1]));
+  chprintf(chp, "STATUS : %u \r\n", pcachip->getStatus());
+}
+
 
 /*
  * assert Shell Commands to functions
@@ -177,6 +190,7 @@ static const ShellCommand commands[] = {
   {"per", cmd_period},
   {"mov", cmd_moveto},
   {"rel", cmd_relative},
+  {"duty", cmd_duty},
   {NULL, NULL}
 };
 
@@ -224,11 +238,11 @@ int main(void) {
   chMBInit(&mbox, mbox_buffer, 8);
 
   pcachip = new PCA9685(&PCA9685_DEFI2C_DRIVER, &i2cconfig, PCA9685_ADDRESS, 47, true);
-  servos[0] = new Servo(pcachip, 2, 220, 420, 0.12, 60, TRUE);
-  servos[1] = new Servo(pcachip, 3, 220, 420, 0.12, 60, TRUE);
+  servos[0] = new Servo(pcachip, 0, 5.1, 10.2, 0.12, 60, TRUE);
+  servos[1] = new Servo(pcachip, 1, 5.1, 10.2, 0.12, 60, TRUE);
 
-  servos[0]->setNeutral();
-  servos[1]->setNeutral();
+  servos[0]->moveTo(0.0);
+  servos[1]->moveTo(0.0);
 
   startBlinker();
 

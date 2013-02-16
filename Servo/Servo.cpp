@@ -53,12 +53,11 @@ extern "C" {
  *                        The time isn't exact value for your particular servo, it's just calculated value of time the
  *                        servo should be at position based on it's specification.
  */
-Servo::Servo(PCA9685 *driver, uint8_t channel, uint16_t minimum, uint16_t maximum, float speed, uint8_t sdegree, bool blocking ) {
+Servo::Servo(PCA9685 *driver, uint8_t channel, float dutymin, float dutymax, float speed, uint8_t sdegree, bool blocking ) {
     this->driver = driver;
     this->channel = channel;
-    this->minimum = minimum;
-    this->maximum = maximum;
-    this->neutral = (this->maximum - this->minimum) / 2;
+    this->dutymin = dutymin;
+    this->dutymax = dutymax;
     this->current = 0;
     this->speed = speed;
     this->sdegree = sdegree;
@@ -75,19 +74,23 @@ void Servo::operator delete(void *mem) {
 }
 
 /**
- * Move to position in degree.
+ * Move to position in degrees.
  * @param float degree - degrees range from -90 to 90
  * @return old position
  */
 Servo *Servo::moveTo(float degree) {
-    uint16_t position = this->minimum;
+    float position = this->dutymin;
     uint16_t turntime;
+
+    this->driver->setChannel(this->channel);
 
     chMtxLock(&this->flag);
     turntime = (abs(degree - this->current)/this->sdegree)*(this->speed * 1000);
-    position += ceil(((this->maximum - this->minimum) / 180.0) * (degree + 90));
-    position = position > this->maximum ? this->maximum : position < this->minimum ? this->minimum : position;
-    this->driver->setPWM(this->channel, 0, position);
+
+    position += ceil(((this->dutymax - this->dutymin) / 180.0) * (degree + 90));
+    position = position > this->dutymax ? this->dutymax : position < this->dutymin ? this->dutymin : position;
+
+    this->driver->setPWM(position);
     this->current = degree;
     if (this->blocking) chThdSleepMicroseconds(turntime);
     chMtxUnlock();
@@ -101,37 +104,24 @@ Servo *Servo::moveTo(float degree) {
  * @return old position
  */
 Servo *Servo::moveRelative(float value) {
-    uint16_t position = this->minimum;
+    float position = this->dutymin;
     uint16_t turntime;
+
+    this->driver->setChannel(this->channel);
 
     chMtxLock(&this->flag);
     turntime = (abs((this->current + value) - this->current)/this->sdegree)*(this->speed * 1000);
-    position += ceil(((this->maximum - this->minimum) / 180.0) * ((this->current + value) + 90));
-    position = position > this->maximum ? this->maximum : position < this->minimum ? this->minimum : position;
-    this->driver->setPWM(this->channel, 0, position);
+
+    position += ceil(((this->dutymin - this->dutymax) / 180.0) * ((this->current + value) + 90));
+    position = position > this->dutymin ? this->dutymax : position < this->dutymin ? this->dutymin : position;
+
+    this->driver->setPWM(position);
     this->current = (this->current + value);
     if (this->blocking) chThdSleepMicroseconds(turntime);
     chMtxUnlock();
 
     return this;
 
-}
-
-/**
- * Sets servo neutral position.
- * @return old position
- */
-Servo *Servo::setNeutral() {
-    uint16_t turntime;
-
-    chMtxLock(&this->flag);
-    turntime = (abs(this->current)/this->sdegree)*(this->speed * 1000);
-    this->current = 0;
-    this->driver->setPWM(this->channel, 0, this->neutral);
-    if (this->blocking) chThdSleepMicroseconds(turntime);
-    chMtxUnlock();
-
-    return this;
 }
 
 float Servo::getPosition(void) {
