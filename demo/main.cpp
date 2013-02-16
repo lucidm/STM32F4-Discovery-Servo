@@ -223,9 +223,12 @@ int main(void) {
 
   chMBInit(&mbox, mbox_buffer, 8);
 
-  pcachip = new PCA9685(&PCA9685_DEFI2C_DRIVER, &i2cconfig, PCA9685_ADDRESS, 47, true);
-  servos[0] = new Servo(pcachip, 0, 5.1, 10.2, 0.12, 60, TRUE);
-  servos[1] = new Servo(pcachip, 1, 5.1, 10.2, 0.12, 60, TRUE);
+  palSetPadMode(GPIOB, 10, PAL_STM32_OTYPE_OPENDRAIN | PAL_STM32_OSPEED_MID2 | PAL_MODE_ALTERNATE(4));
+  palSetPadMode(GPIOB, 11, PAL_STM32_OTYPE_OPENDRAIN | PAL_STM32_OSPEED_MID2 | PAL_MODE_ALTERNATE(4));
+  pcachip = new PCA9685(&PCA9685_DEFI2C_DRIVER, &i2cconfig, PCA9685_ADDRESS, 47, TRUE);
+
+  servos[0] = new Servo(pcachip, 0, 4.9, 10.8, 0.12, 60, TRUE);
+  servos[1] = new Servo(pcachip, 1, 4.9, 10.8, 0.12, 60, TRUE);
 
   servos[0]->moveTo(0.0);
   servos[1]->moveTo(0.0);
