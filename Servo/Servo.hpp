@@ -22,7 +22,7 @@
 
 class Servo {
     public:
-        Servo(PCA9685 *driver, uint8_t channel, float dutymin, float dutymax, float speed, uint8_t sdegree, bool blocking);
+        Servo(PWM *driver, uint8_t channel, float dutymin, float dutymax, float speed, uint8_t sdegree, bool blocking);
         void* operator new(size_t size);
         void operator delete(void *mem);
 
@@ -33,7 +33,7 @@ class Servo {
 
 
 private:
-    PCA9685 *driver;
+    PWM *driver;
     uint8_t channel;
     float dutymin;
     float dutymax;

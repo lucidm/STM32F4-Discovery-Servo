@@ -53,7 +53,7 @@ extern "C" {
  *                        The time isn't exact value for your particular servo, it's just calculated value of time the
  *                        servo should be at position based on it's specification.
  */
-Servo::Servo(PCA9685 *driver, uint8_t channel, float dutymin, float dutymax, float speed, uint8_t sdegree, bool blocking ) {
+Servo::Servo(PWM *driver, uint8_t channel, float dutymin, float dutymax, float speed, uint8_t sdegree, bool blocking ) {
     this->driver = driver;
     this->channel = channel;
     this->dutymin = dutymin;
