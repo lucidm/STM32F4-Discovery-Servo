@@ -48,48 +48,75 @@ static const I2CConfig i2cconfig = {
 #include <PCA9685.hpp>
 #include <Servo.hpp>
 
-Mailbox mbox;
-msg_t mbox_buffer[8];
+typedef struct SServoMsg {
+    Servo *servo;
+    float moveto;
+    bool block;
+} ServoMsg;
+
+Mailbox mbox[2];
+msg_t mbox_buffer[2][8];
+Mutex smmtx[2];
 PCA9685 *pcachip;
 Servo *servos[16];
+ServoMsg msgs[2];
 Servo *servo1;
 Servo *servo2;
 
-// static WORKING_AREA(waServo1, 128);
-// static msg_t SERVO1(void * arg) {
-//     Mailbox* mbox = (Mailbox *)arg;
-//     msg_t msg, result;
-//
-//     while(TRUE) {
-//         result = chMBFetch(mbox, &msg, TIME_INFINITE);
-//         if(result == RDY_OK) {
-//             if(msg & 1)
-//                 palSetPad(IOPORT2, LED1);
-//             else
-//                 palClearPad(IOPORT2, LED1);
-//             if(msg & 2)
-//                 palSetPad(IOPORT2, LED2);
-//             else
-//                 palClearPad(IOPORT2, LED2);
-//         }
-//     }
-//
-//     return 0;
-// }
+static WORKING_AREA(waServo1, 512);
+static msg_t SERVO1(void * arg) {
+     Mailbox* mbox = (Mailbox *)arg;
+     msg_t result;
+     ServoMsg *message;
+     Servo *servo;
+     bool block;
+     float moveto;
 
-//-----------------------------------------------------------------
-void cmd_moveto(BaseSequentialStream *chp, int argc, char *argv[]) {
-  (void)argv;
-  if (argc != 2) {
-    chprintf(chp, "Usage: mv [channel] [degree -90 to 90]\r\n");
-    return;
-  }
-
-  //chMBPost(mbox, 0, TIME_INFINITE);
-  servos[atoi(argv[0])]->moveTo(atof(argv[1]));
-  chprintf(chp, "OLD = %2.2f \r\n", servos[atoi(argv[0])]->getPosition());
+     chRegSetThreadName("Servo 0");
+     while(TRUE) {
+         result = chMBFetch(mbox, (msg_t*) &message, TIME_INFINITE);
+         if(result == RDY_OK) {
+            //Mutex protected section, to release message quickly, copy message to local variables and unlock
+            chMtxLock(&smmtx[0]);
+            servo = message->servo;
+            block = message->block;
+            moveto = message->moveto;
+            chMtxUnlock();
+            servo->setBlocking(block);
+            servo->moveTo(moveto);
+            palTogglePad(GPIOD, GPIOD_LED3);
+         }
+     }
+     return 0;
 }
 
+static WORKING_AREA(waServo2, 512);
+static msg_t SERVO2(void * arg) {
+     Mailbox* mbox = (Mailbox *)arg;
+     msg_t result;
+     ServoMsg *message;
+     Servo *servo;
+     bool block;
+     float moveto;
+
+     chRegSetThreadName("Servo 1");
+     while(TRUE) {
+         result = chMBFetch(mbox, (msg_t*) &message, TIME_INFINITE);
+         if(result == RDY_OK) {
+            //Mutex protected section, to release message quickly, copy message to local variables and unlock
+            chMtxLock(&smmtx[1]);
+            servo = message->servo;
+            block = message->block;
+            moveto = message->moveto;
+            chMtxUnlock();
+            servo->setBlocking(block);
+            servo->moveTo(moveto);
+            palTogglePad(GPIOD, GPIOD_LED5);
+         }
+     }
+     return 0;
+}
+//-----------------------------------------------------------------
 void cmd_relative(BaseSequentialStream *chp, int argc, char *argv[]) {
   (void)argv;
   if (argc != 2) {
@@ -164,6 +191,63 @@ void cmd_duty(BaseSequentialStream *chp, int argc, char *argv[]) {
   chprintf(chp, "STATUS : %u \r\n", pcachip->getStatus());
 }
 
+void cmd_moveto(BaseSequentialStream *chp, int argc, char *argv[]) {
+  uint32_t ticks = chTimeNow();
+  (void)argv;
+  if (argc != 2) {
+    chprintf(chp, "Usage: mov [channel] [degree -90 to 90]\r\n");
+    return;
+  }
+
+  msgs[0].servo = servos[atoi(argv[0])];
+  msgs[0].moveto = atof(argv[1]);
+  msgs[0].block = TRUE;
+  chMBPost(&mbox[atoi(argv[0])], (msg_t) &msgs[0], TIME_INFINITE);
+}
+
+void cmd_asyncmoveto(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+  if (argc < 2) {
+    chprintf(chp, "Usage: amov [ch1 degree] [ch2 degree]\r\n");
+    return;
+  }
+
+  msgs[1].servo = servos[1];
+  msgs[1].moveto = atof(argv[1]);
+  msgs[1].block = FALSE;
+  chMBPost(&mbox[1], (msg_t) &msgs[1], TIME_INFINITE);
+
+  chThdSleepMilliseconds(4);
+
+  msgs[0].servo = servos[0];
+  msgs[0].moveto = atof(argv[0]);
+  msgs[0].block = FALSE;
+  chMBPost(&mbox[0], (msg_t) &msgs[0], TIME_INFINITE);
+
+  //chThdSleepMilliseconds(2);
+
+
+}
+
+void cmd_syncmoveto(BaseSequentialStream *chp, int argc, char *argv[]) {
+  (void)argv;
+  if (argc < 2) {
+    chprintf(chp, "Usage: smov [ch1 degree] [ch2 degree]\r\n");
+    return;
+  }
+
+  msgs[0].servo = servos[0];
+  msgs[0].moveto = atof(argv[0]);
+  msgs[0].block = TRUE;
+  chMBPost(&mbox[0], (msg_t) &msgs[0], TIME_INFINITE);
+
+  chThdSleepMilliseconds(4);
+
+  msgs[1].servo = servos[1];
+  msgs[1].moveto = atof(argv[1]);
+  msgs[1].block = TRUE;
+  chMBPost(&mbox[1], (msg_t) &msgs[1], TIME_INFINITE);
+}
 
 /*
  * assert Shell Commands to functions
@@ -175,6 +259,8 @@ static const ShellCommand commands[] = {
   {"freq", cmd_freq},
   {"pwm", cmd_pwm},
   {"mov", cmd_moveto},
+  {"amov", cmd_asyncmoveto},
+  {"smov", cmd_syncmoveto},
   {"rel", cmd_relative},
   {"duty", cmd_duty},
   {NULL, NULL}
@@ -192,6 +278,13 @@ static const ShellConfig shell_cfg1 = {
   commands
 };
 
+
+static const SerialConfig serial_cfg = {
+    115200,
+    0,
+    USART_CR2_STOP1_BITS | USART_CR2_LINEN,
+    0
+};
 
 
 /*
@@ -217,11 +310,9 @@ int main(void) {
    * Activates the serial driver 2 using the driver default configuration.
    * PA2(TX) and PA3(RX) are routed to USART2.
    */
-  sdStart(&SD2, NULL);
+  sdStart(&SD2, &serial_cfg);
   palSetPadMode(GPIOA, 2, PAL_MODE_ALTERNATE(7));
   palSetPadMode(GPIOA, 3, PAL_MODE_ALTERNATE(7));
-
-  chMBInit(&mbox, mbox_buffer, 8);
 
   palSetPadMode(GPIOB, 10, PAL_STM32_OTYPE_OPENDRAIN | PAL_STM32_OSPEED_MID2 | PAL_MODE_ALTERNATE(4));
   palSetPadMode(GPIOB, 11, PAL_STM32_OTYPE_OPENDRAIN | PAL_STM32_OSPEED_MID2 | PAL_MODE_ALTERNATE(4));
@@ -230,10 +321,23 @@ int main(void) {
   servos[0] = new Servo(pcachip, 0, 4.9, 10.8, 0.12, 60, TRUE);
   servos[1] = new Servo(pcachip, 1, 4.9, 10.8, 0.12, 60, TRUE);
 
-  servos[0]->moveTo(0.0);
-  servos[1]->moveTo(0.0);
+  servo1 = servos[0];
+  servo2 = servos[1];
 
   startBlinker();
+
+  chMtxInit(&smmtx[0]);
+  chMBInit(&mbox[0], mbox_buffer[0], 8);
+  chMBReset(&mbox[0]);
+
+  chMtxInit(&smmtx[1]);
+  chMBInit(&mbox[1], mbox_buffer[1], 8);
+  chMBReset(&mbox[1]);
+
+  chThdCreateStatic(waServo1, sizeof(waServo1), NORMALPRIO, SERVO1, (void*) &mbox[0]);
+  chThdCreateStatic(waServo2, sizeof(waServo2), NORMALPRIO, SERVO2, (void*) &mbox[1]);
+
+
 
   /*
    * Main loop, does nothing except spawn a shell when the old one was terminated

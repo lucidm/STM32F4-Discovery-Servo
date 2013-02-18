@@ -29,20 +29,19 @@ class Servo {
         Servo *moveTo(float degree);
         Servo *moveRelative(float value);
         float getPosition(void);
+        void setBlocking(bool blocking);
+        i2cflags_t getStatus();
 
-
-
-private:
-    PWM *driver;
-    uint8_t channel;
-    float dutymin;
-    float dutymax;
-    uint16_t neutral;
-    float current;
-    float speed;
-    int8_t sdegree;
-    bool blocking;
-    Mutex flag;
+    private:
+        PWM *driver;
+        uint8_t channel;
+        float dutymin;
+        float dutymax;
+        float current;
+        float speed;
+        int8_t sdegree;
+        bool blocking;
+        Mutex flag;
 };
 
 #endif

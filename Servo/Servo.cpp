@@ -62,7 +62,10 @@ Servo::Servo(PWM *driver, uint8_t channel, float dutymin, float dutymax, float s
     this->speed = speed;
     this->sdegree = sdegree;
     this->blocking = blocking;
-    chMtxInit(&this->flag);
+    chMtxInit(&this->flag); //Mutex prevents run of two subsequent movement commands while servo
+                            //is doing previous movement command and servo isn't set at position yet.
+                            //Additionally it protects from setting new current position during the
+                            //previous movement command.
 }
 
 void* Servo::operator new(size_t size) {
@@ -80,19 +83,24 @@ void Servo::operator delete(void *mem) {
  */
 Servo *Servo::moveTo(float degree) {
     float position = this->dutymin;
-    uint16_t turntime;
+    float turntime;
 
     this->driver->setChannel(this->channel);
 
     chMtxLock(&this->flag);
-    turntime = (abs(degree - this->current)/this->sdegree)*(this->speed * 1000);
 
     position += ceil(((this->dutymax - this->dutymin) / 180.0) * (degree + 90));
     position = position > this->dutymax ? this->dutymax : position < this->dutymin ? this->dutymin : position;
 
     this->driver->setPWM(position);
+    if (this->blocking) {
+        turntime = (abs(degree - this->current)/(float)this->sdegree)*(this->speed * 1000000);
+
+        if (turntime > 0) {
+            chThdSleepMicroseconds(turntime);
+        }
+    }
     this->current = degree;
-    if (this->blocking) chThdSleepMicroseconds(turntime);
     chMtxUnlock();
 
     return this;
@@ -105,19 +113,23 @@ Servo *Servo::moveTo(float degree) {
  */
 Servo *Servo::moveRelative(float value) {
     float position = this->dutymin;
-    uint16_t turntime;
+    float turntime;
 
     this->driver->setChannel(this->channel);
 
     chMtxLock(&this->flag);
-    turntime = (abs((this->current + value) - this->current)/this->sdegree)*(this->speed * 1000);
 
     position += ceil(((this->dutymin - this->dutymax) / 180.0) * ((this->current + value) + 90));
     position = position > this->dutymin ? this->dutymax : position < this->dutymin ? this->dutymin : position;
 
     this->driver->setPWM(position);
+    if (this->blocking) {
+        turntime = (abs((this->current + value) - this->current)/(float)this->sdegree)*(this->speed * 1000000);
+        if (turntime > 0) {
+            chThdSleepMicroseconds(turntime);
+        }
+    }
     this->current = (this->current + value);
-    if (this->blocking) chThdSleepMicroseconds(turntime);
     chMtxUnlock();
 
     return this;
@@ -126,4 +138,12 @@ Servo *Servo::moveRelative(float value) {
 
 float Servo::getPosition(void) {
     return this->current;
+}
+
+void Servo::setBlocking(bool blocking) {
+    this->blocking = blocking;
+}
+
+i2cflags_t Servo::getStatus() {
+    return this->driver->getStatus();
 }
